@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum GameStatus {
+  IN_PROGRESS
+  WON
+  ABANDONED
+}
+
+enum GuessFeedback {
+  HIGHER
+  LOWER
+  CORRECT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  games   Game[]
+  guesses Guess[]
+  scores  Score[]
+
+  @@map("users")
+}
+
+model Game {
+  id            String     @id @default(cuid())
+  userId        String     @map("user_id")
+  difficulty    Difficulty
+  minNumber     Int        @default(1) @map("min_number")
+  maxNumber     Int        @map("max_number")
+  secretNumber  Int        @map("secret_number")
+  status        GameStatus @default(IN_PROGRESS)
+  attemptsCount Int        @default(0) @map("attempts_count")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  wonAt         DateTime?  @map("won_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guesses Guess[]
+  score   Score?
+
+  @@index([userId, status])
+  @@index([difficulty])
+  @@map("games")
+}
+
+model Guess {
+  id            String        @id @default(cuid())
+  gameId        String        @map("game_id")
+  userId        String        @map("user_id")
+  value         Int
+  attemptNumber Int           @map("attempt_number")
+  feedback      GuessFeedback
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, attemptNumber])
+  @@index([gameId])
+  @@index([userId])
+  @@map("guesses")
+}
+
+model Score {
+  id            String     @id @default(cuid())
+  userId        String     @map("user_id")
+  gameId        String     @unique @map("game_id")
+  difficulty    Difficulty
+  attemptsCount Int        @map("attempts_count")
+  basePoints    Int        @map("base_points")
+  bonusPoints   Int        @map("bonus_points")
+  totalPoints   Int        @map("total_points")
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([totalPoints])
+  @@map("scores")
+}
